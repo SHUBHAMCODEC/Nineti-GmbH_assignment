@@ -1,0 +1,99 @@
+#include <BLEDevice.h>
+
+const char* serviceUUID = "180F"; // Generic Attribute Service
+const char* tempUUID = "2A6E"; // Temperature Measurement
+const char* humidUUID = "2A6F"; // Humidity
+
+BLEServer* server;
+BLEService* service;
+BLECharacteristic* tempChar;
+BLECharacteristic* humidChar;
+
+void onConnect(BLEServer* pServer) {
+  Serial.println("Client connected");
+}
+
+void onDisconnect(BLEServer* pServer) {
+  Serial.println("Client disconnected");
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  // Initialize BLE
+  if (!BLEDevice::init("")) {
+    Serial.println("Error initializing BLE");
+    return;
+  }
+
+  // Create a BLE server
+  server = new BLEServer();
+  server->setCallbacks(onConnect, onDisconnect);
+
+  // Create the service
+  service = server->createService(serviceUUID);
+  if (!service) {
+    Serial.println("Error creating service");
+    return;
+  }
+
+  // Create the characteristics
+  tempChar = service->createCharacteristic(
+      tempUUID,
+      BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+  if (!tempChar) {
+    Serial.println("Error creating temperature characteristic");
+    return;
+  }
+
+  humidChar = service->createCharacteristic(
+      humidUUID,
+      BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+  if (!humidChar) {
+    Serial.println("Error creating humidity characteristic");
+    return;
+  }
+
+  // Start the service
+  if (!service->start()) {
+    Serial.println("Error starting service");
+    return;
+  }
+
+  // Start advertising the service with a name
+  const char* deviceName = "Temp&Humidity Sensor";
+  if (!server->startAdvertising(deviceName)) {
+    Serial.println("Error starting advertising");
+    return;
+  }
+  Serial.println("Advertising service...");
+
+  delay(100); // Brief delay to ensure service is properly advertised
+}
+
+void loop() {
+  // Mimic sensor behavior (replace with actual sensor readings)
+  int temp = 25; // Celsius
+  int humid = 60; // %
+
+  // Update the characteristic values
+  if (!tempChar->setValue((uint8_t*)&temp, sizeof(temp))) {
+    Serial.println("Error updating temperature characteristic");
+  }
+  if (!humidChar->setValue((uint8_t*)&humid, sizeof(humid))) {
+    Serial.println("Error updating humidity characteristic");
+  }
+
+  // Check if there are any connected clients
+  if (server->getConnectedCount() > 0) {
+    // Notify connected clients about the updated values
+    if (!tempChar->notify()) {
+      Serial.println("Error notifying temperature characteristic");
+    }
+    if (!humidChar->notify()) {
+      Serial.println("Error notifying humidity characteristic");
+    }
+  }
+
+  delay(1000);
+}
